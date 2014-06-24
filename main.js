@@ -4,20 +4,6 @@
 var http = require('http');
 var url = require('url');
 
-/**
- * beta-list server:  processes requests for beta invitations.
- * @returns {*}
- */
-var server = function () {
-    var self = http.createServer(function (request, response) {
-        self.processor = processor(request);
-        response.writeHead(200, {"Content-Type": "text/plain"});
-        if(self.processor.containsIllegalChars())
-            response.end("Error 403 :  illegal characters detected in API call");
-        response.end("200:  added email to beta-list.");
-    });
-    return self;
-};
 
 /**
  * Processor for server requests
@@ -28,7 +14,10 @@ var processor = function (request) {
     var self = this;
 
     self.request = request;
-   // self.requestURL = url.parse(self.request.u);
+
+    self.requestURL = url.parse(self.request.url, true);
+    console.log(self.requestURL);
+
 
     /**
      * Returns true if the request url contains ; or ) characters
@@ -43,12 +32,35 @@ var processor = function (request) {
      * @returns {string}
      */
     self.returnTimeStamp = function () {
-        var a = new Date(Date.now());
-        var hour = a.getUTCHours();
-        var min = a.getUTCMinutes();
-        var sec = a.getUTCSeconds();
+        return new Date().toJSON().toString();
 
-        return hour + ":" + min + ":" + sec + " (UTC+0000 Standard Time)";
+    };
+
+    /**
+     * Returns the proper response JSON for the API call
+     * @returns {string}
+     */
+    self.generateResponseJSON = function () {
+        var responseObject;
+        if(self.containsIllegalChars())
+            responseObject = {Code: 403, Response: "Error:  call contains illegal characters"};
+        else
+            responseObject = {Code: 200, Response: "Confirmed email request for " + self.requestURL.query.email};
+        responseObject = JSON.stringify(responseObject);
+        return responseObject;
+    };
+
+    /**
+     * Returns the proper JSON to be stored.
+     * @returns {string}
+     */
+    self.generateFileStoredJSON = function () {
+        var responseObject = {
+            email: self.requestURL.query.email,
+            timestamp: self.returnTimeStamp()
+        };
+        responseObject = JSON.stringify(responseObject);
+        return responseObject;
     };
 
     return self;
@@ -60,12 +72,28 @@ var processor = function (request) {
  */
 var main = function () {
     var self = this;
-    self.server = server();
+
+    /**
+     * This Creates the Server
+     */
+    self.server = http.createServer(function (request, response) {
+        self.processor = processor(request);
+        response.writeHead(200, {"Content-Type": "text/plain"});
+        response.end(self.processor.generateResponseJSON());
+    });
+
+    /**
+     * This Configures the server
+     */
+    function configure() {
+        self.server.listen(8080);
+    };
+
+    configure();
     return self;
 };
 
 main = main();
 
-main.server.listen(8080);
 
 console.log("Server running at http://127.0.0.1:8000/");
