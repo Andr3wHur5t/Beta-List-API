@@ -79,22 +79,29 @@ var processor = function (request) {
  */
 var IOManager = function (){
     var self = this;
-    self.file = 'test.utf8';
+    self.file = 'docs/emails.json';
+    self.closed = false;
 
     /**
      * Appends JSON into storage file.
      * @param JSONToAppend
      */
     self.appendJSON = function ( JSONToAppend ) {
-        if (fs.existsSync(self.file)) {
-            testString = fs.appendFileSync(self.file, '        ' + JSONToAppend  + ",\n");
-        }
-        else{
-            console.log("file not found creating new file");
-            fs.writeFileSync(self.file, '{"elements":[\n        ' + JSONToAppend + ",\n");
+        if (!self.closed) {
+            if (fs.existsSync(self.file)) {
+                testString = fs.appendFileSync(self.file, ',\n        ' + JSONToAppend);
+            }
+            else {
+                console.log("file not found creating new file");
+                fs.writeFileSync(self.file, '{"elements":[\n        ' + JSONToAppend);
+            }
         }
     };
 
+    self.closeJSON = function (  ) {
+        fs.appendFileSync(self.file, '\n]}');
+        self.closed = true;
+    };
     return self;
 };
 
