@@ -4,28 +4,34 @@
 var http = require('http');
 var url = require('url');
 
-
 /**
- * Processor for server requests
+ * Processor for server requests for beta-list email requests
  * @param request
  * @returns {processor}
  */
 var processor = function (request) {
-    var self = this;
-
-    self.request = request;
-
-    self.requestURL = url.parse(self.request.url, true);
-    console.log(self.requestURL);
-
+    var self =  this;
 
     /**
      * Returns true if the request url contains ; or ) characters
      * @returns {boolean}
      */
     self.containsIllegalChars = function () {
-        return (self.request.url.indexOf(';') != -1 || self.request.url.indexOf(')') != -1);
+        console.log(decodeURIComponent(request.url));
+        return new RegExp(/[\|&\$";,'<>\(\)]/).test(decodeURIComponent(request.url));
     };
+
+    self.request = null;
+    self.requestURL = null;
+
+    if(self.containsIllegalChars() == false) {
+        self.request = request;
+        self.requestURL = url.parse(self.request.url, true);
+        console.log("No illegal characters");
+    }
+    else{
+        console.log("DUDE THERE'S AN ILLEGAL CHARACTER IN THERE!!!");
+    }
 
     /**
      * Returns timestamp from when the function is called
@@ -55,12 +61,15 @@ var processor = function (request) {
      * @returns {string}
      */
     self.generateFileStoredJSON = function () {
-        var responseObject = {
-            email: self.requestURL.query.email,
-            timestamp: self.returnTimeStamp()
-        };
-        responseObject = JSON.stringify(responseObject);
-        return responseObject;
+        if(!self.containsIllegalChars()) {
+            var responseObject = {
+                email: self.requestURL.query.email,
+                timestamp: self.returnTimeStamp()
+            };
+            responseObject = JSON.stringify(responseObject);
+            return responseObject;
+        }
+        return null;
     };
 
     return self;
