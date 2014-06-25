@@ -3,6 +3,7 @@
  */
 var http = require('http');
 var url = require('url');
+var fs = require('fs');
 
 /**
  * Processor for server requests for beta-list email requests
@@ -17,21 +18,8 @@ var processor = function (request) {
      * @returns {boolean}
      */
     self.containsIllegalChars = function () {
-        console.log(decodeURIComponent(request.url));
         return new RegExp(/[\|&\$";,'<>\(\)]/).test(decodeURIComponent(request.url));
     };
-
-    self.request = null;
-    self.requestURL = null;
-
-    if(self.containsIllegalChars() == false) {
-        self.request = request;
-        self.requestURL = url.parse(self.request.url, true);
-        console.log("No illegal characters");
-    }
-    else{
-        console.log("DUDE THERE'S AN ILLEGAL CHARACTER IN THERE!!!");
-    }
 
     /**
      * Returns timestamp from when the function is called
@@ -39,7 +27,6 @@ var processor = function (request) {
      */
     self.returnTimeStamp = function () {
         return new Date().toJSON().toString();
-
     };
 
     /**
@@ -72,6 +59,42 @@ var processor = function (request) {
         return null;
     };
 
+
+    self.request = null;
+    self.requestURL = null;
+    //set RequestURL only if the file is not an xss attack...
+    if(self.containsIllegalChars() == false) {
+        self.request = request;
+        self.requestURL = url.parse(self.request.url, true);
+    }
+
+
+    return self;
+};
+
+/**
+ * Manager for file Input and output
+ * @returns {IOManager}
+ * @constructor
+ */
+var IOManager = function (){
+    var self = this;
+    self.file = 'test.utf8';
+
+    /**
+     * Appends JSON into storage file.
+     * @param JSONToAppend
+     */
+    self.appendJSON = function ( JSONToAppend ) {
+        if (fs.existsSync(self.file)) {
+            testString = fs.appendFileSync(self.file, '        ' + JSONToAppend  + ",\n");
+        }
+        else{
+            console.log("file not found creating new file");
+            fs.writeFileSync(self.file, '{"elements":[\n        ' + JSONToAppend + ",\n");
+        }
+    };
+
     return self;
 };
 
@@ -82,13 +105,18 @@ var processor = function (request) {
 var main = function () {
     var self = this;
 
+    self.IOManager = IOManager();
     /**
      * This Creates the Server
      */
     self.server = http.createServer(function (request, response) {
         self.processor = processor(request);
         response.writeHead(200, {"Content-Type": "text/plain"});
-        response.end(self.processor.generateResponseJSON());
+        response.write(self.processor.generateResponseJSON());
+        if(!self.processor.containsIllegalChars()){
+           self.IOManager.appendJSON(self.processor.generateFileStoredJSON());
+        }
+        response.end();
     });
 
     /**
@@ -96,7 +124,7 @@ var main = function () {
      */
     function configure() {
         self.server.listen(8080);
-    };
+    }
 
     configure();
     return self;
