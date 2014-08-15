@@ -4,6 +4,11 @@
 var http = require('http');
 var url = require('url');
 var fs = require('fs');
+var koa = require('koa');
+var koaJsonBody = require('koa-json-body');
+var app = koa();
+
+app.use(koaJsonBody({ limit: '10kb' }));
 
 /**
  * Processor for server requests for beta-list email requests
@@ -18,7 +23,7 @@ var processor = function (request) {
      * @returns {boolean}
      */
     self.containsIllegalChars = function () {
-        return new RegExp(/[\|&\$";,'<>\(\)]/).test(decodeURIComponent(request.url));
+        return new RegExp(/[\|&\$";,'<>\(\)]/).test(request.body.email);
     };
 
     /**
@@ -38,7 +43,7 @@ var processor = function (request) {
         if(self.containsIllegalChars())
             responseObject = {Code: 403, Response: "Error:  call contains illegal characters"};
         else
-            responseObject = {Code: 200, Response: "Confirmed email request for " + self.requestURL.query.email};
+            responseObject = {Code: 200, Response: "Confirmed email request for " + self.passedInEmail};
         responseObject = JSON.stringify(responseObject);
         return responseObject;
     };
@@ -61,13 +66,11 @@ var processor = function (request) {
 
 
     self.request = null;
-    self.requestURL = null;
+    self.passedInEmail = null;
     //set RequestURL only if the file is not an xss attack...
     if(self.containsIllegalChars() == false) {
-        self.request = request;
-        self.requestURL = url.parse(self.request.url, true);
+        self.passedInEmail = request.body.email;
     }
-
 
     return self;
 };
@@ -87,6 +90,7 @@ var IOManager = function (){
      * @param JSONToAppend
      */
     self.appendJSON = function ( JSONToAppend ) {
+        console.log("I am going to append...: " +JSONToAppend);
         if (!self.closed) {
             if (fs.existsSync(self.file)) {
                 testString = fs.appendFileSync(self.file, ',\n        ' + JSONToAppend);
@@ -113,27 +117,15 @@ var main = function () {
     var self = this;
 
     self.IOManager = IOManager();
-    /**
-     * This Creates the Server
-     */
-    self.server = http.createServer(function (request, response) {
-        self.processor = processor(request);
-        response.writeHead(200, {"Content-Type": "text/plain"});
-        response.write(self.processor.generateResponseJSON());
-        if(!self.processor.containsIllegalChars()){
-           self.IOManager.appendJSON(self.processor.generateFileStoredJSON());
-        }
-        response.end();
+
+    app.use(function *() {
+        self.processor = processor(this.request);
+        this.response.body = (self.processor.generateResponseJSON());
+        self.IOManager.appendJSON(self.processor.passedInEmail);
     });
 
-    /**
-     * This Configures the server
-     */
-    function configure() {
-        self.server.listen(8080);
-    }
+    app.listen(8000);
 
-    configure();
     return self;
 };
 

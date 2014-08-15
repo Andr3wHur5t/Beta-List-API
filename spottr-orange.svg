@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" height="100%" width="100%">
+  <title>Vertical gradient, with a fixed width</title>
+  <defs>
+    <linearGradient id="g" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop style="stop-color: #f1592a;" offset="0"/>
+      <stop style="stop-color: #ef4036;" offset="1"/>
+    </linearGradient>
+  </defs>
+  <rect style="fill: url(#g);" width="100%" height="100%"/>
+</svg>
